@@ -7,6 +7,10 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "GOmeet",
   description: "One-to-one and one-to-many video calling",
+  icons: {
+    icon: "/gomeet.png",
+    apple: "/gomeet.png",
+  },
 };
 
 export default function RootLayout({
@@ -23,6 +27,7 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,500,0,0&display=swap"
           rel="stylesheet"
         />
+        <link rel="icon" href="/gomeet.png" type="image/png" />
       </head>
       <body className="antialiased">
         <p className="pointer-events-none fixed right-4 top-4 z-50 text-xs tracking-wide text-zinc-500">
