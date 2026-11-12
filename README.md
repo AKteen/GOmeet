@@ -39,6 +39,8 @@ npm run dev
 
 Use [`render.yaml`](render.yaml). The API image runs migrations, then listens on `PORT`. A `postgres://` URL is rewritten for the Go driver, and TLS is turned on when `sslmode=require`.
 
+GOmeet tables are created in the `gomeet` schema. The migration does not create or alter `public.users` or any Django table.
+
 Fill these on the **gomeet-api** service. The blueprint already wires `DATABASE_URL` and `REDIS_URL`.
 
 | Variable | Value |

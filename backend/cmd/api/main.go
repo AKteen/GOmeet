@@ -46,7 +46,12 @@ func main() {
 
 func serve(cfg config.Settings, dsn string) error {
 	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, dsn)
+	poolConfig, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		return err
+	}
+	poolConfig.ConnConfig.RuntimeParams["search_path"] = "gomeet"
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		return err
 	}

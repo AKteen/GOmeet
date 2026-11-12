@@ -36,7 +36,7 @@ func mapErr(err error) error {
 
 func (p *Postgres) CreateUser(ctx context.Context, u *User) error {
 	err := p.pool.QueryRow(ctx, `
-		INSERT INTO users (id, email, password_hash, name, agora_uid)
+		INSERT INTO gomeet.users (id, email, password_hash, name, agora_uid)
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING created_at
 	`, u.ID, u.Email, u.PasswordHash, u.Name, u.AgoraUID).Scan(&u.CreatedAt)
@@ -44,20 +44,20 @@ func (p *Postgres) CreateUser(ctx context.Context, u *User) error {
 }
 
 func (p *Postgres) DeleteUser(ctx context.Context, id uuid.UUID) error {
-	_, err := p.pool.Exec(ctx, `DELETE FROM users WHERE id=$1`, id)
+	_, err := p.pool.Exec(ctx, `DELETE FROM gomeet.users WHERE id=$1`, id)
 	return err
 }
 
 func (p *Postgres) UserByEmail(ctx context.Context, email string) (User, error) {
-	return p.scanUser(ctx, `SELECT id, email, password_hash, name, agora_uid, created_at FROM users WHERE email=$1`, email)
+	return p.scanUser(ctx, `SELECT id, email, password_hash, name, agora_uid, created_at FROM gomeet.users WHERE email=$1`, email)
 }
 
 func (p *Postgres) UserByID(ctx context.Context, id uuid.UUID) (User, error) {
-	return p.scanUser(ctx, `SELECT id, email, password_hash, name, agora_uid, created_at FROM users WHERE id=$1`, id)
+	return p.scanUser(ctx, `SELECT id, email, password_hash, name, agora_uid, created_at FROM gomeet.users WHERE id=$1`, id)
 }
 
 func (p *Postgres) UserByAgoraUID(ctx context.Context, uid int) (User, error) {
-	return p.scanUser(ctx, `SELECT id, email, password_hash, name, agora_uid, created_at FROM users WHERE agora_uid=$1`, uid)
+	return p.scanUser(ctx, `SELECT id, email, password_hash, name, agora_uid, created_at FROM gomeet.users WHERE agora_uid=$1`, uid)
 }
 
 func (p *Postgres) scanUser(ctx context.Context, query string, arg any) (User, error) {
@@ -71,7 +71,7 @@ func (p *Postgres) scanUser(ctx context.Context, query string, arg any) (User, e
 
 func (p *Postgres) MaxAgoraUID(ctx context.Context) (*int, error) {
 	var n *int
-	err := p.pool.QueryRow(ctx, `SELECT MAX(agora_uid) FROM users`).Scan(&n)
+	err := p.pool.QueryRow(ctx, `SELECT MAX(agora_uid) FROM gomeet.users`).Scan(&n)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (p *Postgres) MaxAgoraUID(ctx context.Context) (*int, error) {
 
 func (p *Postgres) CreateRoom(ctx context.Context, room *Room) error {
 	err := p.pool.QueryRow(ctx, `
-		INSERT INTO rooms (id, slug, title, host_id, max_participants, chat_room_id, is_active)
+		INSERT INTO gomeet.rooms (id, slug, title, host_id, max_participants, chat_room_id, is_active)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING created_at
 	`, room.ID, room.Slug, room.Title, room.HostID, room.MaxParticipants, room.ChatRoomID, room.IsActive).Scan(&room.CreatedAt)
@@ -91,7 +91,7 @@ func (p *Postgres) RoomBySlug(ctx context.Context, slug string) (Room, error) {
 	var room Room
 	err := p.pool.QueryRow(ctx, `
 		SELECT id, slug, title, host_id, max_participants, chat_room_id, is_active, created_at
-		FROM rooms WHERE slug=$1
+		FROM gomeet.rooms WHERE slug=$1
 	`, slug).Scan(&room.ID, &room.Slug, &room.Title, &room.HostID, &room.MaxParticipants, &room.ChatRoomID, &room.IsActive, &room.CreatedAt)
 	if err != nil {
 		return Room{}, mapErr(err)
@@ -102,7 +102,7 @@ func (p *Postgres) RoomBySlug(ctx context.Context, slug string) (Room, error) {
 func (p *Postgres) RoomsByHost(ctx context.Context, hostID uuid.UUID) ([]Room, error) {
 	rows, err := p.pool.Query(ctx, `
 		SELECT id, slug, title, host_id, max_participants, chat_room_id, is_active, created_at
-		FROM rooms WHERE host_id=$1 ORDER BY created_at DESC
+		FROM gomeet.rooms WHERE host_id=$1 ORDER BY created_at DESC
 	`, hostID)
 	if err != nil {
 		return nil, err
@@ -130,7 +130,7 @@ const sessionCols = `id, room_id, started_at, ended_at, recording_url, transcrip
 func (p *Postgres) GetOrOpenSession(ctx context.Context, roomID uuid.UUID) (CallSession, error) {
 	s, err := scanSession(p.pool.QueryRow(ctx, `
 		SELECT `+sessionCols+`
-		FROM call_sessions
+		FROM gomeet.call_sessions
 		WHERE room_id=$1 AND ended_at IS NULL
 		ORDER BY started_at DESC
 		LIMIT 1
@@ -143,7 +143,7 @@ func (p *Postgres) GetOrOpenSession(ctx context.Context, roomID uuid.UUID) (Call
 	}
 	s = CallSession{ID: uuid.New(), RoomID: roomID}
 	err = p.pool.QueryRow(ctx, `
-		INSERT INTO call_sessions (id, room_id) VALUES ($1, $2) RETURNING started_at
+		INSERT INTO gomeet.call_sessions (id, room_id) VALUES ($1, $2) RETURNING started_at
 	`, s.ID, s.RoomID).Scan(&s.StartedAt)
 	return s, err
 }
@@ -151,7 +151,7 @@ func (p *Postgres) GetOrOpenSession(ctx context.Context, roomID uuid.UUID) (Call
 func (p *Postgres) AddParticipant(ctx context.Context, sessionID, userID uuid.UUID) error {
 	var existing uuid.UUID
 	err := p.pool.QueryRow(ctx, `
-		SELECT id FROM participants
+		SELECT id FROM gomeet.participants
 		WHERE session_id=$1 AND user_id=$2 AND left_at IS NULL
 	`, sessionID, userID).Scan(&existing)
 	if err == nil {
@@ -161,21 +161,21 @@ func (p *Postgres) AddParticipant(ctx context.Context, sessionID, userID uuid.UU
 		return err
 	}
 	_, err = p.pool.Exec(ctx, `
-		INSERT INTO participants (id, session_id, user_id) VALUES ($1, $2, $3)
+		INSERT INTO gomeet.participants (id, session_id, user_id) VALUES ($1, $2, $3)
 	`, uuid.New(), sessionID, userID)
 	return err
 }
 
 func (p *Postgres) SetSTTAgent(ctx context.Context, sessionID uuid.UUID, agentID string) error {
-	_, err := p.pool.Exec(ctx, `UPDATE call_sessions SET stt_agent_id=$2 WHERE id=$1`, sessionID, agentID)
+	_, err := p.pool.Exec(ctx, `UPDATE gomeet.call_sessions SET stt_agent_id=$2 WHERE id=$1`, sessionID, agentID)
 	return err
 }
 
 func (p *Postgres) MarkLeft(ctx context.Context, roomID, userID uuid.UUID) error {
 	_, err := p.pool.Exec(ctx, `
-		UPDATE participants SET left_at=$3
+		UPDATE gomeet.participants SET left_at=$3
 		WHERE user_id=$2 AND left_at IS NULL AND session_id IN (
-			SELECT id FROM call_sessions WHERE room_id=$1 AND ended_at IS NULL
+			SELECT id FROM gomeet.call_sessions WHERE room_id=$1 AND ended_at IS NULL
 		)
 	`, roomID, userID, time.Now().UTC())
 	return err
@@ -194,7 +194,7 @@ func (p *Postgres) CloseSessionIfEmpty(ctx context.Context, roomID uuid.UUID, re
 	var id uuid.UUID
 	var agent *string
 	err = tx.QueryRow(ctx, `
-		SELECT id, stt_agent_id FROM call_sessions
+		SELECT id, stt_agent_id FROM gomeet.call_sessions
 		WHERE room_id=$1 AND ended_at IS NULL
 		ORDER BY started_at DESC
 		LIMIT 1
@@ -207,11 +207,11 @@ func (p *Postgres) CloseSessionIfEmpty(ctx context.Context, roomID uuid.UUID, re
 	}
 	now := time.Now().UTC()
 	if _, err := tx.Exec(ctx, `
-		UPDATE participants SET left_at=$2 WHERE session_id=$1 AND left_at IS NULL
+		UPDATE gomeet.participants SET left_at=$2 WHERE session_id=$1 AND left_at IS NULL
 	`, id, now); err != nil {
 		return "", false, err
 	}
-	if _, err := tx.Exec(ctx, `UPDATE call_sessions SET ended_at=$2 WHERE id=$1`, id, now); err != nil {
+	if _, err := tx.Exec(ctx, `UPDATE gomeet.call_sessions SET ended_at=$2 WHERE id=$1`, id, now); err != nil {
 		return "", false, err
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -226,7 +226,7 @@ func (p *Postgres) CloseSessionIfEmpty(ctx context.Context, roomID uuid.UUID, re
 func (p *Postgres) ActiveSession(ctx context.Context, roomID uuid.UUID) (CallSession, error) {
 	s, err := scanSession(p.pool.QueryRow(ctx, `
 		SELECT `+sessionCols+`
-		FROM call_sessions
+		FROM gomeet.call_sessions
 		WHERE room_id=$1 AND ended_at IS NULL
 		ORDER BY started_at DESC
 		LIMIT 1
@@ -239,7 +239,7 @@ func (p *Postgres) ActiveSession(ctx context.Context, roomID uuid.UUID) (CallSes
 
 func (p *Postgres) AppendTranscript(ctx context.Context, sessionID uuid.UUID, line string) error {
 	_, err := p.pool.Exec(ctx, `
-		UPDATE call_sessions
+		UPDATE gomeet.call_sessions
 		SET transcript = CASE
 			WHEN transcript IS NULL OR transcript = '' THEN $2
 			ELSE transcript || E'\n' || $2
@@ -252,7 +252,7 @@ func (p *Postgres) AppendTranscript(ctx context.Context, sessionID uuid.UUID, li
 func (p *Postgres) ListSessions(ctx context.Context, roomID uuid.UUID) ([]CallSession, error) {
 	rows, err := p.pool.Query(ctx, `
 		SELECT `+sessionCols+`
-		FROM call_sessions WHERE room_id=$1
+		FROM gomeet.call_sessions WHERE room_id=$1
 		ORDER BY started_at DESC
 	`, roomID)
 	if err != nil {
@@ -281,8 +281,8 @@ func (p *Postgres) ListSessions(ctx context.Context, roomID uuid.UUID) ([]CallSe
 func (p *Postgres) participants(ctx context.Context, sessionID uuid.UUID) ([]Participant, error) {
 	rows, err := p.pool.Query(ctx, `
 		SELECT p.user_id, u.name, u.agora_uid, p.joined_at, p.left_at
-		FROM participants p
-		LEFT JOIN users u ON u.id = p.user_id
+		FROM gomeet.participants p
+		LEFT JOIN gomeet.users u ON u.id = p.user_id
 		WHERE p.session_id=$1
 		ORDER BY p.joined_at
 	`, sessionID)
